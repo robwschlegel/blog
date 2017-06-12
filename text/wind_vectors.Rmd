@@ -1,7 +1,7 @@
 ---
 title: Wind Vector Time Series
-author: "Robert Schlegel"
-date: "12 June 2017"
+author: 'Robert Schlegel'
+date: '12 June 2017'
 output: 
   html_document:
     keep_md: true
@@ -18,7 +18,7 @@ knitr::opts_chunk$set(
 As more and more physical scientists (e.g. oceanographers) move to R from other object oriented command line programming languages, such as Matlab, there will be more and more demand for the code that is needed to do some basic things that they may already know how to do in their previous languages that they don't yet know how to do in R. Surprisingly, there are many things that should be very easy to find how to do in R that are not. Or are at least not widely publicized. One such example is how to plot wind vectors as a time series. This is a very necessary part of any analysis of the wind or currents in a particular area. Making it useful broadly to most climate scientists. Try as I might, I've only been able to find one [source](http://jason-doug-climate.blogspot.co.za/2014/08/weather-station-at-worldfish-hq-goes.html) that gives an example of how to plot wind (or current) vectors as a time series with `ggplot2` in R. Having now been asked how to do this by several people I thought it would be useful to write up my workflow and put it on the internet so that there is one more source that people searching for answers may find.
 
 ## Data
-The data used in this example come from the [ERA-Interim](http://apps.ecmwf.int/datasets/data/interim-full-daily/levtype=sfc/) reanalysis product. This is an amazing product with dozens of data layers stretched over an even global grid at a native resolution of 0.75°. Here we use the one pixel from this product closest to Cape Town in order to illustrate how to use these data as a time series for a single point in space at a daily resolution for one month (December, 2016). For the purposes of this example we will only be using the following three layers: "2 metre temperature", "10 metre U wind component" and "10 metre V wind component". The data used in this post may be downloaded [here](https://github.com/schrob040/blog/blob/master/data/ERA_pixel.Rdata).
+The data used in this example come from the [ERA-Interim](http://apps.ecmwf.int/datasets/data/interim-full-daily/levtype=sfc/) reanalysis product. This is an amazing product with dozens of data layers stretched over an even global grid at a native resolution of 0.75°. Here we use the one pixel from this product closest to Cape Town in order to illustrate how to use these data as a time series for a single point in space at a daily resolution for one month (December, 2016). For the purposes of this example we will only be using the following three layers: '2 metre temperature', '10 metre U wind component' and '10 metre V wind component'. The data used in this post may be downloaded [here](https://github.com/schrob040/blog/blob/master/data/ERA_pixel.Rdata).
 
 ```{r, warning=FALSE, message=FALSE}
 # First load libraries
@@ -26,7 +26,7 @@ library(tidyverse)
 library(scales)
 
 # Then data
-load("~/blog/data/ERA_pixel.Rdata")
+load('~/blog/data/ERA_pixel.Rdata')
 ```
 
 ## Wind Vectors
@@ -56,15 +56,15 @@ To create a wind vector time series we use the following few lines of code:
 ggplot(data = ERA_pixel, aes(x = date, y = y_axis)) +
   # Here we create the wind vectors as a series of segments with arrow tips
     geom_segment(aes(x = date, xend = date + u*wind_scale, y = 0, yend = v*wind_scale), 
-                 arrow = arrow(length = unit(0.15, "cm")), size = 0.5, alpha = 0.7) +
+                 arrow = arrow(length = unit(0.15, 'cm')), size = 0.5, alpha = 0.7) +
   # I think adding points at the base of the vectors makes the figure easier to read
     geom_point(aes(x = date, y = 0), alpha = 0.5, size = 1) +
   # Changing the dates to better match the range shown on the x axis
-    scale_x_date(labels = date_format("%Y-%m-%d"), breaks = date_breaks("4 days")) +
+    scale_x_date(labels = date_format('%Y-%m-%d'), breaks = date_breaks('4 days')) +
   # Change the y axis labels to make sense
     scale_y_continuous(breaks = y_axis, labels = as.character(abs(y_axis)/wind_scale)) +
   # Change the x and y axis labels
-    labs(x = NULL, y = "Wind Speed (m/s)") +
+    labs(x = NULL, y = 'Wind Speed (m/s)') +
     coord_equal(ylim = c(min(y_axis/wind_scale), max(y_axis/wind_scale))) +
     theme(axis.text.x = element_text(angle = 20, hjust = 0.4, vjust = 0.5, size = 8),
           axis.text.y = element_text(size = 8))
@@ -81,11 +81,11 @@ wind_scale <- 0.5
 # The exact same code as above
 ggplot(data = ERA_pixel, aes(x = date, y = y_axis)) +
     geom_segment(aes(x = date, xend = date + u, y = 0, yend = v), 
-                 arrow = arrow(length = unit(0.15, "cm")), size = 0.5, alpha = 0.7) +
+                 arrow = arrow(length = unit(0.15, 'cm')), size = 0.5, alpha = 0.7) +
     geom_point(aes(x = date, y = 0), alpha = 0.5, size = 1) +
-    scale_x_date(labels = date_format("%Y-%m-%d"), breaks = date_breaks("4 days")) +
+    scale_x_date(labels = date_format('%Y-%m-%d'), breaks = date_breaks('4 days')) +
     scale_y_continuous(breaks = y_axis/wind_scale, labels = as.character(abs(y_axis)/wind_scale)) +
-    labs(x = NULL, y = "Wind Speed (m/s)") +
+    labs(x = NULL, y = 'Wind Speed (m/s)') +
     coord_equal(ylim = c(min(y_axis/wind_scale), max(y_axis/wind_scale))) +
     theme(axis.text.x = element_text(angle = 20, hjust = 0.4, vjust = 0.5, size = 8),
           axis.text.y = element_text(size = 8))
@@ -102,18 +102,18 @@ wind_scale <- 1
 
 # Now we use temperature for the y axis, so some things must change
 ggplot(data = ERA_pixel, aes(x = date, y = temp)) +
-    geom_line(colour = "salmon", show.legend = F, size = 1.5) +
+    geom_line(colour = 'salmon', show.legend = F, size = 1.5) +
     geom_segment(aes(x = date, xend = date + u, 
                      y = mean(temp, na.rm = T), yend = mean(temp, na.rm = T) +v), 
-                 arrow = arrow(length = unit(0.15, "cm")), size = 0.5, alpha = 0.7) +
+                 arrow = arrow(length = unit(0.15, 'cm')), size = 0.5, alpha = 0.7) +
     geom_point(aes(x = date, y = mean(temp, na.rm = T)), alpha = 0.5, size = 1) +
   # Create the label box for our wind vector length legend
-    geom_label(aes(x = as.Date("2016-12-04"), y = 22, label = "  4 m/s  \n"), size = 5) +
+    geom_label(aes(x = as.Date('2016-12-04'), y = 22, label = '  4 m/s  \n'), size = 5) +
   # Create the segment for the wind vector legend
-    geom_segment(aes(x = as.Date("2016-12-02"), xend = as.Date("2016-12-06"), 
+    geom_segment(aes(x = as.Date('2016-12-02'), xend = as.Date('2016-12-06'), 
                      y = 21.4, yend = 21.4), size = 0.5, alpha = 0.7) +
-    scale_x_date(labels = date_format("%Y-%m-%d"), breaks = date_breaks("4 days")) +
-    labs(x = NULL, y = "Temperature (°C)") +
+    scale_x_date(labels = date_format('%Y-%m-%d'), breaks = date_breaks('4 days')) +
+    labs(x = NULL, y = 'Temperature (°C)') +
   # Here we choose to allow ggplot to determine the best range for y axis values
     coord_equal() +
     theme(axis.text.x = element_text(angle = 20, hjust = 0.4, vjust = 0.5, size = 8),
