@@ -1,9 +1,0 @@
----
-title: "test"
-author: "Robert Schlegel"
-date: "05 June 2017"
-output: html_document
----
-
-# Test
-Test
