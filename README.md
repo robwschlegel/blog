@@ -7,3 +7,9 @@ The files used for my musings on data science
 
 ## 2017/06/05
 * And so it begins
+
+## 2017/06/12
+* Post on how to plot wind vectors in ggplot2
+
+## 2017/06/19
+* Post on the relationships between gender equality and GDP
