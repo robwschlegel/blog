@@ -13,3 +13,6 @@ The files used for my musings on data science
 
 ## 2017/06/19
 * Post on the relationships between gender equality and GDP
+
+## 2017/06/26
+* Post on how to re-create ODV plots of CTD profiles over time
