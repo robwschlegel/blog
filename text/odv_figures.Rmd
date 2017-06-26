@@ -17,6 +17,9 @@ knitr::opts_chunk$set(
 ## Objective
 With more and more scientists moving to open source software (i.e. R or Python) to perform their numerical analyses the opportunities for collaboration increase and we may all benefit from this enhanced productivity. At the risk of sounding sycophantic, the future of scientific research truly is in multi-disciplinary work. What then could be inhibiting this slow march towards progress? As with most everything else in our lives that we persist in against our better judgment, the answer is that we tend to like to stick to waht is comfortable. Oceanographers in South Africa have been using [MATLAB](https://www.mathworks.com/products/matlab.html) and [ODV](http://odv.awi.de/) (Ocean Data View) since about the time that jesus was lacing up his sandles for his first trip to Palestine. There has been much debate on the future of MATLAB in science, so I won't get into that here, but I will say that the the package `oce` contains nearly all of the code that one would need for oceanographic work in R. The software that has however largely gone under the radar in the software debates has been ODV. Probably because it is free (after registration) it's fate has not been sealed by university departments looking to cut costs. The issue with ODV however is the same with all Microsoft products; the sin of having a "pointy clicky" user interface. One cannot perform truly reproducible research with a menu driven user interface. The steps must be written out in code. And so here I will lay out those necessary steps to create an interpolated CTD time series of temperature values that looks as close to the defalut output of ODV as possible.
 
+
+angstroms v0.0.1: Provides helper functions for working with Regional Ocean Modeling System (ROMS) output.
+
 ![](../figures/ODV_example.jpg)
 
 **Figure 1**: The default output of ODV when plotting temperature by depth through time at one location.
@@ -31,6 +34,8 @@ library(lubridate)
 library(reshape2)
 library(colorRamps)
 library(MBA)
+library(mgcv)
+library(FNN)
 
 # Load and screen data
   # For ease I am only using monthly means
@@ -41,10 +46,10 @@ ctd <- read_csv("../data/ctd.csv") %>%
   select(date, depth, temperature) %>% 
   rename(temp = temperature) %>%
 ### Comment out the following lines to keep the full resolution
-  mutate(date = round_date(date, unit = "month")) %>%
+  # mutate(date = round_date(date, unit = "month")) %>%
   mutate(depth = round(depth, 1)) %>%
   group_by(date, depth) %>%
-  summarise(temp = mean(temp, na.rm = TRUE))
+  summarise(temp = round(mean(temp, na.rm = TRUE),1))
 ###
 
 # Create quick scatterplot
@@ -61,105 +66,151 @@ Figure 2 is a far cry from the final product we want, but it is a step in the co
 
 In order to do so we will need to `dcast()` our data into a wide format so that it simulates a surface layer. `spread()` from the `tidyr` package doesn't quite work as we want a proper surface map, which is outside of the current ideas on the structuring of tidy data. Therefore, after casting our data wide we will use `melt()`, rather than `gather()`, to get the data back into long format so that it works with `ggplot2`. 
 
-<!-- Through these steps we will convert the data into monthly mean values as the sampling here is too infrequent to warrant the creation of daily means. -->
+It is important to note with the use of `mba.surf()` that it transposes the values while it is creating the calculations and so creating an eneven grid does not work well. With this method one needs to always give the same values for the amount of pixels on the x and y axes.
 
-```{r}
-# First we must create a numerical index for the dates
-# in order to interpolate between them
-date_index <- data.frame(date = seq(min(ctd$date), max(ctd$date), by = "month"),
-                         depth = 0, temp = mean(ctd$temp[ctd$depth > -1.0], na.rm = T))
+To create a colour palette that appears colser to the ODV standard I decided to use [GIMP](https://www.gimp.org/downloads/) to [extract](https://www.youtube.com/watch?v=VHyFgTZmnF8) the hexidecimal colour values from the colour bar in Figure 1.
 
-# Then cast into wide format
-ctd <- merge(ctd, date_index, by = c("date", "depth", "temp"), all = TRUE)
-# dcast(depth ~ date, value.var = "temp", fun.aggregate = mean)
+```{r, warning=FALSE, message=FALSE}
+# Manually extracted hexidecimal ODV colour palette
+ODV_colours <- c("#feb483", "#d31f2a", "#ffc000", "#27ab19", "#0db5e6", "#7139fe", "#d16cfa")
 
-# ctd_wide <- dcast(ctd_wide, depth ~ date, 
-#                     value.var = "temp", fun.aggregate = mean)
-
-# Next we interpolate the data
-  # But to do so we need the date column to be numeric
+# The date column must then be converted to numeric values
 ctd$date <- decimal_date(ctd$date)
-# colnames(ctd) <- c("x", "y", "z")
-# 
-# data(LIDAR)
-# test <- mba.surf(LIDAR, 100, 100)$xyz.est
-# dimnames(test$z) <- list(test$y, test$x)
-# test <- data.frame(test$z)
-# test <- melt(test, variable.name = c("y", "x"), value.name = "temp")
 
-### This is correct but not transposed
-test <- mba.surf(ctd, no.X = 100, no.Y = 100)$xyz.est
-dimnames(test$z) <- list(test$x, test$y)
-test <- data.frame(test$z)
-test <- data.frame(t(test$z))
-test$depth <- row.names(test)
-test <- melt(test, id.vars = "depth", variable.name = "date", value.name = "temp")
-###
+# Now we may interpolate the data
+ctd_mba <- mba.surf(ctd, no.X = 300, no.Y = 300, extend = T)
+dimnames(ctd_mba$xyz.est$z) <- list(ctd_mba$xyz.est$x, ctd_mba$xyz.est$y)
+ctd_mba <- melt(ctd_mba$xyz.est$z, varnames = c('date', 'depth'), value.name = 'temp') %>% 
+  filter(depth < 0) %>% 
+  mutate(temp = round(temp, 1))
 
-test <- mba.surf(ctd, no.X = 100, no.Y = 100)
-dimnames(test$xyz.est$z) <- list(test$xyz.est$x, test$xyz.est$y)
-test <- melt(test$xyz.est$z, varnames = c('date', 'depth'), value.name = 'temp')
-# test <- data.frame(test$z)
-# test <- data.frame(t(test$z))
-# test$depth <- row.names(test)
-# test <- melt(test, id.vars = "depth", variable.name = "date", value.name = "temp")
-
-ggplot(data = test, aes(x = date, y = depth)) +
+# Finally we create our gridded result
+ggplot(data = ctd_mba, aes(x = date, y = depth)) +
   geom_raster(aes(fill = temp)) +
-  scale_fill_gradientn(colours = matlab.like2(10)) +
-  # scale_y_reverse() +
-  labs(y = "depth (m)", x = NULL, fill = "temp. (°C)")
+  scale_fill_gradientn(colours = rev(ODV_colours)) +
+  geom_contour(aes(z = temp), binwidth = 2, colour = "black", alpha = 0.2) +
+  geom_contour(aes(z = temp), breaks = 20, colour = "black") +
+### Activate to see which pixels are real and not interpolated
+  # geom_point(data = ctd, aes(x = date, y = depth),
+  #            colour = 'black', size = 0.2, alpha = 0.4, shape = 8) +
+###
+  labs(y = "depth (m)", x = NULL, fill = "temp. (°C)") +
+  coord_cartesian(expand = 0)
 ```
 
+**Figure 3**: The same temperature profiles seen in Figure 2 with the missing values filled in with multilevel B-splines. Note the artefact crreated in the bottom right corner.
+
+At first glance this now appears to be a very good aproximation of the output from ODV. An astute eye will have noticed that the temperatures along the bottom right corner of this figure are not interpolatingin a way that appears possible. It is very unlikely that there would be a deep mixed layer underneath the thermoclines detected during 2015. The reason the splines create this artefact is that they are based on a convex hull around the real data points and so the interpolating algorithm wants to perfrom a regression towards a mean value away from the central point of where the spline is being calculated from. Because the thermoclines detected are interspersed between times where the entire water column consists of a mixed layer `mba.surf()` is filling in the areas without data as though they should are a fully mixed surface layer.
+
+There are many ways to deal with this problem with three possible fixes coming to mind quickly. The first is to set `extend = F` within `mba.surf()`. This tells the algorithm not to fill up every part of the plotting area and will alleviate some of the inaccurate interpolation that occurs but will not eliminate it. The second fix, which wouldprevent all innacurate interpolation would be to limit the depth of all of the temperature profiles to be the same as the shollowest sampled profile. This is not an ideal fix because we would then lose quite a bit of information from the deeper sampling that occurred from 2013 to 2014. The third fix is the best but most dramatic departure from the methods we have used thus far. In order to interpolate across all of our data, but not create artefacts we will need to create a bounding box and use soap-film smoothing. The benefit of soap-film smoothing over some other method, such as a normal GAM, is that it more accurately acknowledges the bounding box we supply it. This means that if there are large differences in the depths of samplings the soap-film will not interpolate across that gap. Thus preventing the undue exapnsion of the mixed-layer artefact.
+
 ```{r}
-test <- mba.surf(ctd, no.X = length(date_index$date), no.Y = length(unique(ctd$depth)), 
-                    n = length(unique(ctd$depth))/length(date_index$date))$xyz.est
-test <- data.frame(test$z)
-colnames(test) <- date_index$date
-test$depth <- unique(ctd$depth)
-test <- melt(test, id.vars = "depth", variable.name = "date", value.name = "temp")
+# First create a bounding box
+  # These are meant to be pulled from shape files
+  # So we need to be a bit sneeky about how we make this
+  # Also, because we are using our data as a bounding box
+  # we want to slightly extend the edges so as to use all of our ata
+left <- ctd[ctd$date == min(ctd$date),] %>% 
+  select(-temp) %>% 
+  ungroup() %>% 
+  mutate(date = date-0.01)
+bottom <- ctd %>%
+  group_by(date) %>% 
+  summarise(depth = min(depth)) %>% 
+  mutate(depth = depth-0.01)
+right <- ctd[ctd$date == max(ctd$date),] %>% 
+  select(-temp) %>% 
+  ungroup() %>% 
+  mutate(date = date+0.01)
+top <- ctd %>%
+  group_by(date) %>% 
+  summarise(depth = max(depth)) %>% 
+  mutate(depth = depth+0.01)
+bounding_box <- rbind(data.frame(left[order(nrow(left):1),]), data.frame(bottom), 
+                      data.frame(right), data.frame(top[order(nrow(top):1),]))
+
+# Now that we have a bounding box we need to 
+# create knots for the soap-film smoothing
+
+# Now we get to the soap-filter
+bounding_box_list <- list(bounding_box)
+
+ctd_mba_bound <- ctd_mba[inSide(bounding_box_list, date, depth),]
+
+fsb <- list(bounding_box)
+names(fsb[[1]]) <- c("v","w")
+nmax <- 100
+## create some internal knots...
+knots <- data.frame(v=rep(seq(2013,2016,length.out=10),6),
+                    w=rep(c(-2, -7, -12, -17, -22, -27), 10))
+# Remove knots that lay outside of the bounding box
+v <- knots$v
+w <- knots$w
+knots <- knots[inSide(fsb, x=v, y=w),]
+# Test plot
+ggplot(data = knots, aes(x = v, y = w)) +
+  geom_path(data = bounding_box, aes(x = date, y = depth)) +
+  geom_point(colour = "red")
+
+## Simulate some fitting data, inside boundary...
+set.seed(0)
+n <- 600
+v <- ctd$date
+w <- ctd$depth
+y <- ctd$temp
+ind <- inSide(fsb,x=v,y=w) ## remove outsiders
+# y <- y + rnorm(n)*.3 ## add noise
+y <- y[ind];v <- v[ind]; w <- w[ind] 
+n <- length(y)
+
+tprs <- gam(temp ~ s(date, depth, k = 60), data = ctd, method = "REML", xt=list(bnd=fsb,nmax=nmax))
+grid.x <- with(tprs$var.summary,
+               seq(min(c(bounding_box[,1])), max(c(bounding_box[,1])), by = 0.1))
+grid.y <- with(tprs$var.summary,
+               seq(min(c(bounding_box[,2])), max(c(bounding_box[,2])), by = 0.1))
+pdata <- with(tprs$var.summary, expand.grid(date = grid.x, depth = grid.y))
+pdata <- transform(pdata, temp = predict(tprs, pdata, type = "response"))
+inlake <- with(pdata, inSide(bounding_box_list, date, depth))
+pdata <- pdata[inlake, ]
+
+ggplot(bounding_box, aes(x = date, y = depth)) +
+  geom_raster(data = pdata, aes(x = date, y = depth, fill = temp)) +
+  geom_path() +
+  # geom_point(data = knots, aes(x = lon, y = lat), size = 0.5) +
+  geom_point(size = 0.1) +
+  scale_fill_gradientn(colours = rev(ODV_colours))
 
 
-ggplot(data = test, aes(x = date, y = depth)) +
-  geom_raster(aes(fill = temp)) +
-  scale_fill_gradientn(colours = matlab.like2(10)) +
-  # scale_y_reverse() +
-  labs(y = "depth (m)", x = NULL, fill = "temp. (°C)")
+## plot boundary with knot and data locations
+plot(fsb[[1]]$v,fsb[[1]]$w,type="l");points(knots,pch=20,col=2)
+points(v,w,pch=".")
+
+nmax <- 100 ## reduced from default for speed.
+tprs <- gam(y~s(v,w,k=30,bs="so",xt=list(bnd=fsb,nmax=nmax)),
+            knots=knots[c(22:23),])
+grid.x <- with(tprs$var.summary,
+               seq(min(c(bounding_box[,1])), max(c(bounding_box[,1])), by = 0.1))
+grid.y <- with(tprs$var.summary,
+               seq(min(c(bounding_box[,2])), max(c(bounding_box[,2])), by = 0.1))
+pdata <- with(tprs$var.summary, expand.grid(v = grid.x, w = grid.y))
+# names(pdata) <- c("lon","lat")
+##predictions
+pdata <- transform(pdata, temp = predict(tprs, pdata, type = "response"))
 
 
-
-ctd_mba <- mba.surf(ctd, no.X = length(date_index$date), no.Y = length(unique(ctd$depth)), 
-                    n = length(unique(ctd$depth))/length(date_index$date))$xyz.est
-
-dimnames(ctd_mba$xyz.est$z) <- list(ctd_mba$xyz.est$x, ctd_mba$xyz.est$y)
-
-ctd_long <- melt(ctd_mba$xyz.est$z, varnames = c("depth", "date"), value.name = "temp")
-
-ctd_long$date2 <- format(date_decimal(ctd_long$date), "%Y-%m-%d")
+inlake <- with(pdata, inSide(fsb, v, w))
+pdata <- pdata[inlake, ]
 
 
-test <- data.frame(ctd_mba$xyz.est$z)
+ggplot(bounding_box, aes(x = date, y = depth)) +
+  geom_raster(data = pdata, aes(x = v, y = w, fill = temp)) +
+  geom_path() +
+  # geom_point(data = knots, aes(x = lon, y = lat), size = 0.5) +
+  geom_point(size = 0.1) +
+  scale_fill_gradientn(colours = rev(ODV_colours))
+  # coord_fixed() + ylab("Northing") + xlab("Easting") #+
+  # scale_fill_viridis(na.value = NA)
 
-# mba <- mba.surf(df[,c('date', 'dep', 'Sal')], 100, 100)
-# dimnames(mba$xyz.est$z) <- list(mba$xyz.est$x, mba$xyz.est$y)
-# df3 <- melt(mba$xyz.est$z, varnames = c('date', 'depth'), value.name = 'salinity')
-# df <- data.frame(x = c("a", "b"), y = c(3, 4), z = c(5, 6))
-# df %>% spread(x, y) %>% gather(x, y, a:b, na.rm = TRUE)
-# 
-# 
-# ctd_1_wide <- dcast(ctd_1, depth ~ date, 
-#                     value.var = "temp", fun.aggregate = mean)
-# 
-# ctd_1_wide <- ctd_1 %>% 
-#   group_by(date) %>% 
-#   spread(date2, temp)
-
-# The fully interpolated figure
-ggplot(data = ctd_long, aes(x = date, y = depth)) +
-  geom_raster(aes(fill = temp)) +
-  scale_fill_gradientn(colours = matlab.like2(10)) +
-  # scale_y_reverse() +
-  labs(y = "depth (m)", x = NULL, fill = "temp. (°C)")
 
 ```
 
