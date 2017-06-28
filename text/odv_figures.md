@@ -1,18 +1,7 @@
----
-title: 
-author: 'Robert Schlegel'
-date: '26 June 2017'
-output: 
-  html_document:
-    keep_md: true
----
+Robert Schlegel  
+26 June 2017  
 
-```{r, echo=FALSE}
-knitr::opts_chunk$set(
-  fig.path = '../figures/',
-  cache = FALSE
-)
-```
+
 
 ## Objective
 With more and more scientists moving to open source software (i.e. R or Python) to perform their numerical analyses the opportunities for collaboration increase and we may all benefit from this enhanced productivity. At the risk of sounding sycophantic, the future of scientific research truly is in multi-disciplinary work. What then could be inhibiting this slow march towards progress? We tend to like to stick to what is comfortable. Oceanographers in South Africa have been using [MATLAB](https://www.mathworks.com/products/matlab.html) and [ODV](http://odv.awi.de/) (Ocean Data View) since about the time that Jesus was lacing up his sandals for his first trip to Palestine. There has been much debate on the future of MATLAB in science, so I won't get into that here, but I will say that the package [oce](https://cran.r-project.org/web/packages/oce/index.html) contains much of the code that one would need for oceanographic work in R, and the package [angstroms](https://cran.r-project.org/web/packages/angstroms/) helps one to work with ROMS (Regional Ocean Modeling System) output. The software that has however largely gone under the radar in these software debates has been ODV. Probably because it is free (after registration) it's fate has not been sealed by university departments looking to cut costs. The issue with ODV however is the same with all Microsoft products; the sin of having a "pointy clicky" user interface. One cannot perform truly reproducible research with a menu driven user interface. The steps must be written out in code. And so here I will lay out those necessary steps to create an interpolated CTD time series of temperature values that looks as close to the default output of ODV as possible.
@@ -24,7 +13,8 @@ With more and more scientists moving to open source software (i.e. R or Python) 
 ## Colour palette
 Perhaps the most striking thing about the figures that ODV creates is it's colour palette. A large criticism of this colour palette is that the range of colours used are not equally weighted visually, with the bright reds drawing ones eye more than the muted blues. This issue can be made up for using the [viridis](https://cran.r-project.org/web/packages/viridis/) package, but for now we will stick to a ODV-like colour palette as that is part of our current objective. To create a colour palette that appears close to the ODV standard I used [GIMP](https://www.gimp.org/downloads/) to [extract](https://www.youtube.com/watch?v=VHyFgTZmnF8) the hexadecimal colour values from the colour bar in Figure 1.
 
-```{r of-scatter, warning=FALSE, message=FALSE}
+
+```r
 # Load libraries
 library(tidyverse)
 library(lubridate)
@@ -57,6 +47,8 @@ ggplot(data = ctd, aes(x = date, y = depth)) +
   labs(y = "depth (m)", x = NULL, colour = "temp. (°C)")
 ```
 
+![](../figures/of-scatter-1.png)<!-- -->
+
 **Figure 2**: A non-interpolated scatterplot of our temperature (°C) data shown as a function of depth (m) over time.
 
 ## Interpolating
@@ -66,7 +58,8 @@ In order to do so we will need to `dcast()` our data into a wide format so that 
 
 It is important to note with the use of `mba.surf()` that it transposes the values while it is creating the calculations and so creating an uneven grid does not work well. Using the code written below one will always need to give the same specifications for pixel count on the x and y axes.
 
-```{r of-interp, warning=FALSE, message=FALSE}
+
+```r
 # The date column must then be converted to numeric values
 ctd$date <- decimal_date(ctd$date)
 
@@ -91,6 +84,8 @@ ggplot(data = ctd_mba, aes(x = date, y = depth)) +
   coord_cartesian(expand = 0)
 ```
 
+![](../figures/of-interp-1.png)<!-- -->
+
 **Figure 3**: The same temperature (°C) profiles seen in Figure 2 with the missing values filled in with multilevel B-splines. Note the artefact created in the bottom right corner. The 20°C contour line is highlighted in black.
 
 At first glance this now appears to be a very good approximation of the output from ODV. An astute eye will have noticed that the temperatures along the bottom right corner of this figure are not interpolating in a way that appears possible. It is very unlikely that there would be a deep mixed layer underneath the thermoclines detected during 2015. The reason the splines create this artefact is that they are based on a convex hull around the real data points and so the interpolating algorithm wants to perform a regression towards a mean value away from the central point of where the spline is being calculated from. Because the thermoclines detected are interspersed between times where the entire water column consists of a mixed layer `mba.surf()` is filling in the areas without data as though they are a fully mixed surface layer.
@@ -98,7 +93,8 @@ At first glance this now appears to be a very good approximation of the output f
 ## Bounding boxes
 There are many ways to deal with this problem with four possible fixes coming to mind quickly. The first is to set `extend = F` within `mba.surf()`. This tells the algorithm not to fill up every part of the plotting area and will alleviate some of the inaccurate interpolation that occurs but will not eliminate it. The second fix, which would prevent all inaccurate interpolation would be to limit the depth of all of the temperature profiles to be the same as the shallowest sampled profile. This is not an ideal fix because we would then lose quite a bit of information from the deeper sampling that occurred from 2013 to 2014. The third fix is to create a bounding box and screen out all of the interpolated data outside of it. A fourth option is to use soap-film smoothing over some other interpolation method, such as a normal GAM, concurrently with a bounding box. This is normally a good choice but does not work well with these data so I have gone with option three.
 
-```{r of-bound, warning=FALSE, message=FALSE}
+
+```r
 # Create a bounding box
   # We want to slightly extend the edges so as to use all of our data
 left <- ctd[ctd$date == min(ctd$date),] %>% 
@@ -128,11 +124,6 @@ v <- ctd_mba$date
 w <- ctd_mba$depth
 ctd_mba_bound <- ctd_mba[inSide(bounding_box_list, v, w),]
 
-# Correct date values back to date format
-  # Not used as it introduces blank space into the figure
-# ctd_mba_bound$date <- as.Date(format(date_decimal(ctd_mba_bound$date), "%Y-%m-%d"))
-
-
 # The screened data
 ggplot(data = ctd_mba_bound, aes(x = date, y = depth)) +
   geom_raster(aes(fill = temp)) +
@@ -143,9 +134,9 @@ ggplot(data = ctd_mba_bound, aes(x = date, y = depth)) +
   coord_cartesian(expand = 0)
 ```
 
-**Figure 4**: The same temperature (°C) profiles seen in Figure 3 with a bounding box used to screen out data interpolated outside of the range of the recordings.
+![](../figures/of-bound-1.png)<!-- -->
 
 ## Summary
-In this short tutorial we have seen how to create an interpolated temperature depth profile over time after a fashion very similar to the default output from ODV. We have also seen how to either fill the entire plotting area with interpolated data (Figure 3), or quickly generate a bounding box in order to remove any potential interpolation artefacts (Figure 4). I think this is a relatively straight forward work flow and would work with any tidy dataset. It is worth noting that this is not constrained to depth profiles, but would work just as well with map data. One would only need to change the `date` and `depth` variables to `lon` and `lat`.
+In this short tutorial we have seen how to create an interpolated temperature depth profile over time after a fashion very similar to the default output from ODV. We have also seen how to either fill the entire plotting area with interpolated data, or quickly generate a bounding box in order to remove any potential interpolation artefacts. I think this is a relatively straight forward work flow and would work with any tidy dataset. It is worth noting that this is not constrained to depth profiles, but would work just as well with map data. One would only need to change the `date` and `depth` variables to `lon` and `lat`.
 
 R is an amazingly flexible language with an incredible amount of support and I've yet to see it not be able to emulate, or improve upon, an analysis or graphical output from any other software.
