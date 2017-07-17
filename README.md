@@ -22,3 +22,6 @@ The files used for my musings on data science
 
 ## 2017/07/10
 * Post on goats per capita around the world
+
+## 2017/07/17
+* Post on mapping and faceting with ggplot2
