@@ -1,20 +1,8 @@
----
-title: 'mapping_with_ggplot2'
-author: 'Robert Schlegel'
-date: '17 July 2017'
-output: 
-  html_document:
-    keep_md: true
----
+# mapping_with_ggplot2
+Robert Schlegel  
+17 July 2017  
 
-```{r, echo=FALSE}
-knitr::opts_chunk$set(
-  fig.path = '../figures/',
-  cache = FALSE,
-  warning = FALSE, 
-  message = FALSE
-)
-```
+
 
 ## Objective
 There are many different things that require scientists to use programming languages (like R). Far too many to count here. There is however one common use amongst almost all environmental scientists: mapping. Almost every report, research project or paper will have need to refer to a study area. This is almost always "Figure 1". To this end, whenever I teach R, or run workshops on it, one of the questions I am always prepared for is how to create a map of a particular area. Being a happy convert to the [tidyverse](https://cran.r-project.org/web/packages/tidyverse/) I only teach the graphics of [ggplot2](https://cran.r-project.org/web/packages/ggplot2/). I have found that people often prefer to use the [ggmap](https://cran.r-project.org/web/packages/ggmap/) extension to create ggplot quality figures with Google map backgrounds, but I personally think that a more traditional monotone background for maps looks more professional. What I've decided to showcase this week is the data and code required to create a publication quality map. Indeed, the following code will create the aforementioned obligatory "Figure 1" in a paper I am currently preparing for submission.
@@ -26,7 +14,8 @@ Once one has the borders to be used in the map, the next step is to think about 
 
 Panda's aside, the current work I am engaged in also requires that the atmospheric processes around southern Africa be considered in addition to the oceanography. To visualise both air and sea concurrently would be a mess so we will want to create separate panels for each. Because I have been working with reanalysis data lately, and not satellite data, I am also able to include the wind/ current vectors in order to really help the temperature patterns pop. The oceanic data are from the [BRAN2016](wp.csiro.au/bluelink) product and the atmospheric data are from [ERA-Interim](http://www.ecmwf.int/en/research/climate-reanalysis/era-interim). Both of which are available for download for free for scientific pursuits. I've chosen here to use the mean values for January 1st as the summer months provide the most clear example of the thermal differences between the Agulhas and Benguela currents. The code used to create the scale bar in the maps may be found [here](http://editerna.free.fr/wp/?p=76). It's not a proper ggplot geom function but works well enough. I've also decided to add the 200 m isobath to the sea panel. These data come from NOAA.
 
-```{r mg-load}
+
+```r
 ## Libraries
 library(tidyverse)
 library(viridis)
@@ -60,7 +49,8 @@ source("../func/scale.bar.func.R")
 ## Mapping
 I find that it is easier to keep track of the different aspects of a map when they are stored as different dataframes. One should however avoid having too many loose dataframes running about in the global environment. It is a balancing act and requires one to find a happy middle ground. Here I am going to cut the `all_jan1_0.5` dataframe into 4. One each for air and sea temperatures and vectors. I am also going to reduce the resolution of the wind so that the vectors will plot more nicely.
 
-```{r mg-prep}
+
+```r
 # Devide the reanalysis data
 sea_temp <- filter(all_jan1_0.5, variable == "BRAN/temp")
 air_temp <- filter(all_jan1_0.5, variable == "ERA/temp")
@@ -84,7 +74,8 @@ With just a few alterations to our nicely divided up dataframes we are ready to 
 
 First up is the most busy. The following code chunk will create the top panel of our map, the sea state. It is necessary to label all of the locations mentioned in the text and so they are thrown on here. In order to make the site label easier to read I've made them red. This is particularly jarring but I think I like it.
 
-```{r mg-top}
+
+```r
 # Establish the vector scalar for the currents
 current_uv_scalar <- 2
 
@@ -106,8 +97,8 @@ mg_top <- ggplot(data = southern_africa_coast, aes(x = lon, y = lat)) +
     geom_label(aes(x = 36, y = -37, label = "1.0 m/s\n"), size = 3, label.padding = unit(0.5, "lines")) +
     geom_segment(aes(x = 35, y = -37.5, xend = 37, yend = -37.5)) +
   # The in situ sites
-    geom_point(data = site_list, shape = 1,  size = 2.8, colour = "ivory") +
-    geom_text(data = site_list, aes(label = order), size = 1.9, colour = "red") +
+    geom_point(data = site_list, shape = 1,  size = 2.4, colour = "ivory") +
+    geom_text(data = site_list, aes(label = order), size = 1.6, colour = "red") +
   # Oceans
     annotate("text", label = "INDIAN\nOCEAN", x = 37.00, y = -34.0, size = 4.0, angle = 0, colour = "ivory") +
     annotate("text", label = "ATLANTIC\nOCEAN", x = 13.10, y = -34.0, size = 4.0, angle = 0, colour = "ivory") +
@@ -143,7 +134,8 @@ mg_top <- ggplot(data = southern_africa_coast, aes(x = lon, y = lat)) +
 
 Many of the sites that need to be plotted are laying on top of each other. This is never good, but is made worse when the sites in question are refereed to frequently in the text. For this reason we need to create a little panel inside of the larger figure that shows a zoomed in picture of False Bay. Complete with text labels.
 
-```{r mg-fb}
+
+```r
 # False Bay inset
 fb <- ggplot(data = sa_shore, aes(x = lon, y = lat)) +
   # The land mass
@@ -171,7 +163,8 @@ fb <- ggplot(data = sa_shore, aes(x = lon, y = lat)) +
 
 We could possibly create another inset panel for the clomp of sites around Hamburg but this figure is already getting too busy. So we'll leave it for now. One inset panel will serve to illustrate the code necessary to create a faceted map so for the purposes of this post it will also suffice. That leaves us with only the bottom panel to create. The air state. I've decided to put the scale bar/ North arrow on this panel in an attempt to balance the amount of information in each panel.
 
-```{r mg-bottom}
+
+```r
 # Establish the vector scalar for the wind
 wind_uv_scalar <- 0.5
 
@@ -210,7 +203,8 @@ mg_bottom <- ggplot(data = southern_africa_coast, aes(x = lon, y = lat)) +
 
 With our three pieces of the map complete, it is time to stick them together. There are many ways to do this but I have recently found that using `annotation_custom` allows one to stick any sort of ggplot like object onto any other sort of ggplot object. This is an exciting development and opens up a lot of doors for some pretty creative stuff. Here I will just use it to demonstrate simple faceting, but combined with panel gridding. Really though the sky is the limit.
 
-```{r mg-full}
+
+```r
 # Convert the figures to grobs
 mg_top_grob <- ggplotGrob(mg_top)
 fb_grob <- ggplotGrob(fb)
@@ -229,16 +223,13 @@ gg <- ggplot() +
     annotation_custom(mg_bottom_grob,
                       xmin = 1, xmax = 10, ymin = 1, ymax = 5.5)
 # save
-  # DPI set very low because my internet is slow...
-ggsave(plot = gg, filename = "../figures/mg_full.png", dpi = 100)
+ggsave(plot = gg, filename = "../figures/mg_full.png", width = 6, height = 6)
 ```
 
 ## Summary
 The developments in the gridding system have brought the potential for using ggplot for these more complex maps forward quite a bit. As long as one does not use a constrained mapping coordinate system (i.e. `coord_fixed`) the grob-ification of the ggplot objects seems to allow the placing of the pieces into a common area to be performed smoothly. Displaying many different bits of information cleanly is always a challenge. This figure is particularly busy, out of necessity. I think it turned out very nicely though.
 
-```{r mg-final, echo=FALSE}
-knitr::include_graphics("../figures/mg_full.png")
-```
+<img src="../figures/mg_full.png" width="1800" />
 
 **Figure 1**: Map showing the southern tip of the African continent. The top panel shows the typical sea surface temperature and surface currents on January 1st. The bottom panel likewise shows the typical surface air temperatures and winds on any given January 1st.
 
