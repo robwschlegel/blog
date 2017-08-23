@@ -1,20 +1,8 @@
----
-title: 'polar_plot_clims'
-author: 'Robert Schlegel'
-date: '23 August 2017'
-output: 
-  html_document:
-    keep_md: true
----
+# polar_plot_clims
+Robert Schlegel  
+23 August 2017  
 
-```{r, echo=FALSE}
-knitr::opts_chunk$set(
-  fig.path = '../figures/',
-  cache = FALSE,
-  warning = FALSE, 
-  message = FALSE
-)
-```
+
 
 ## Objective
 Whilst cruising about on [Imgur](http://imgur.com) I found a post about science stuff. Not uncommon, which is nice. These sorts of grab-bag posts about nothing in particular often include some mention of climate science, almost exclusively some sort of clever visualisation of a warming planet. That seems to be what people are most interested in. I'm not complaining though, it keeps me employed. The aforementioned post caught my attention more than usual because it included a GIF, and not just a static picture of some sort of blue thing that is becoming alarmingly red (that was not meant to be a political metaphor). I'm referring to the now famous GIF by climate scientist Ed Hawkins (@ed_hawkins) whose blog may be found [here](https://www.climate-lab-book.ac.uk/), and the specific post in question [here](https://www.climate-lab-book.ac.uk/2016/spiralling-global-temperatures/). A quick bit of research on this animation revealed that it has likely been viewed by millions of people, was featured in the opening ceremony of the Rio Olympics, and was created in MATLAB. Those three key points made me decide to do a post on how to re-create this exact figure in R via a bit of reverse engineering. The original GIF in question is below.
@@ -27,7 +15,8 @@ Figure 1 above uses the global mean temperature anomalies taken from [HadCRUT4](
 ## Code
 With our end goal established (Figure 1), and our dataset chosen (SACTN), we may now get busy with the actual code necessary. As one may have inferred from the title of this post, Figure 1 is what we call a "polar plot". This may appear complex to some, but is actually a very simple visualisation, as we shall see below. But first we need to prep our data. For consistency in the creation of the anomaly values below I will use 1981 -- 2010 for the climatology of each time series.
 
-```{r polar-prep}
+
+```r
 ## Libraries
 library(tidyverse)
 library(viridis)
@@ -60,7 +49,8 @@ KB <- ts.sub("Kent Bay/ KZNSB")
 
 With our data prepared we may now create the series of functions that will make a spiralling polar plot of temperatures for any time series we feed into it. I prefer to use the [animation](https://cran.r-project.org/web/packages/animation/index.html) package to create animations in R. This requires that one also installs [image magick](http://www.imagemagick.org/script/index.php) beforehand. This is a free software that is available for all major operating systems. There are a few ways to create animations in R, but I won't go into that now. The method I employ to create the animations below may seem odd at first, but as far as I have seen it is the most efficient way to do so. The philosophy employed here is that we want to have one final function that simply counts forward one step at a time, creating each frame of the GIF. This function calls on other functions that are calculating the necessary stats and creating the visuals from them in the background. By creating animations in this way, our up front prep and calculation time is almost non-existent. It does mean that the animations take longer to compile, but they are also much more dynamic and we may feed any number of different dataframes into them to get different outputs. I have found over the years that the more automated ones code can be the better.
 
-```{r polar-anim}
+
+```r
 ## Function that creates a polar plot
 polar.plot <- function(df, i){
   # Add bridges for polar coordinates
@@ -133,7 +123,8 @@ animate.polar.plot <- function(df) {
 
 With the above two functions created, we may now call them nested within one another via the `saveGIF` function below.
 
-```{r polar-GIF, eval=FALSE}
+
+```r
 # By default 'saveGIF()' outputs to the same folder 
 # the script where the code is being run from is located.
 # For that reason one may want to manually change the
