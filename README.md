@@ -25,3 +25,6 @@ The files used for my musings on data science
 
 ## 2017/07/17
 * Post on mapping and faceting with ggplot2
+
+## 2017/08/23
+* Post on how to create polar plot animations of climatologies
