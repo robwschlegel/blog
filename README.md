@@ -28,3 +28,6 @@ The files used for my musings on data science
 
 ## 2017/08/23
 * Post on how to create polar plot animations of climatologies
+
+## 2017/11/27
+* The seq_sites() vignette
