@@ -31,3 +31,6 @@ The files used for my musings on data science
 
 ## 2017/11/27
 * The seq_sites() vignette
+
+## 2017/12/08
+* The transects() vignette

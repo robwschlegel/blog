@@ -18,7 +18,7 @@ library(gridExtra)
 ## Preface
 The rest of the blog post after this preface section is a copy of the vignette I've written for the first function in the new package I am developing: `coastR`. This package aims to provide functions that are useful for coastal oceanography but that do not yet exist in the R language. It is not my intention to provide algorithms for physical oceanography as these may already be found elsewhere. This post covers how one may determine the correct sequence of sites along a convoluted coastline.
 
-Now that I've handed in my PhD I am a little less pressed as far as deadlines go and I would like to return to my habit of creating a new blog post every Friday. I've written quite a bit of code over the last three years and much of it needs to find it's way into the `coastR`. Next week I am planning on uploading a function for calculating shore normal transects. Until then, please enjoy the spectacle of sequnetial ordering. Woo.
+Now that I've handed in my PhD I am a little less pressed as far as deadlines go and I would like to return to my habit of creating a new blog post every Friday. I've written quite a bit of code over the last three years and much of it needs to find it's way into the `coastR`. Next week I am planning on uploading a function for calculating shore normal transects. Until then, please enjoy the spectacle of sequential ordering. Woo.
 
 
 ## Overview
