@@ -6,9 +6,7 @@ Robert Schlegel
 
 
 ```r
-# Run the following two lines to install 'coastR'
-# library(devtools)
-# install_github("schrob040/coastR")
+# devtools::install_github("robwschlegel/coastR") # Install coastR
 library(coastR)
 library(dplyr)
 library(ggplot2)
