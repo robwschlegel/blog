@@ -1,0 +1,113 @@
+---
+title: 'South African Time Survey'
+author: 'Robert Schlegel'
+date: '17 July 2018'
+output: 
+  html_document:
+    keep_md: true
+---
+
+```{r, echo=FALSE}
+knitr::opts_chunk$set(
+  fig.path = '../figures/',
+  cache = FALSE,
+  warning = FALSE, 
+  message = FALSE
+)
+```
+
+## Objective
+
+```{r load}
+library(tidyverse)
+library(ggpubr)
+survey <- read_csv("../data/SA Time Survey.csv", skip = 1, col_types = "cccccc",
+                   col_names = c("time", "just now", "now now", "now", "province", "city")) %>% 
+  select(-time) %>%
+  mutate(`just now` = as.numeric(sapply(strsplit(`just now`, " "), "[[", 1)),
+         `now now` = as.numeric(sapply(strsplit(`now now`, " "), "[[", 1)),
+         `now` = as.numeric(sapply(strsplit(`now`, " "), "[[", 1)),
+         province = gsub("Kzn", "KZN", province),
+         province = gsub("GP", "Gauteng", province),
+         province = as.factor(province),
+         city = as.factor(city))
+
+# Check that city and province names are all lekker
+levels(survey$province)
+levels(survey$city)
+
+# Create a long version for easier stats
+survey_long <- survey %>% 
+  gather(key = "saying", value = "minutes", -province, -city) %>% 
+  na.omit()
+```
+
+```{r location-bar}
+province_plot <- ggplot(data = survey, aes(x = province)) +
+  geom_bar(aes(fill = province), show.legend = F) +
+  ggtitle("Provinces of participants") +
+  labs(x = "")
+# province_plot
+city_plot <- ggplot(data = survey, aes(x = city)) +
+  geom_bar(aes(fill = city), show.legend = F) +
+  ggtitle("Cities of participants") +
+  labs(x = "") +
+  theme(axis.text.x = element_text(angle = 15))
+# city_plot
+ggarrange(province_plot, city_plot, ncol = 1, nrow = 2)
+ggsave(filename = "../figures/SA_time_locations.pdf")
+```
+
+```{r basic-stats}
+library(pgirmess)
+compare_means(minutes~saying, data = survey_long, method = "anova")
+compare_means(minutes~saying, data = survey_long, method = "kruskal.test")
+kruskalmc(minutes~saying, data = survey_long)
+```
+
+```{r basic-plot}
+ggplot(data = survey_long, aes(x = saying, y = minutes)) +
+  geom_boxplot(aes(fill = saying)) +
+  stat_compare_means(method = "kruskal.test", 
+                     label.x = 1.7, label.y = 320) +
+  ggtitle("Distribution of time (minutes) for common South African sayings")
+ggsave(filename = "../figures/SA_time_basic.pdf")
+```
+
+```{r province-stats}
+# Remove provinces with fewer than five entries
+survey_province <- survey_long %>% 
+  filter(province != "Mpumalanga", province != "KZN")
+
+# compare_means(minutes ~ saying + province, data = survey_province, method = "kruskal.test")
+summary(aov(minutes ~ saying * province, data = survey_province))
+TukeyHSD(aov(minutes ~ saying * province, data = survey_province))
+```
+
+```{r province-plot}
+ggplot(data = survey_province, aes(x = saying, y = minutes)) +
+  geom_boxplot(aes(fill = province)) +
+  stat_compare_means(method = "kruskal.test", 
+                     label.x = 1.7, label.y = 320) +
+  ggtitle("Distribution of times by province")
+ggsave(filename = "../figures/SA_time_province.pdf")
+```
+
+```{r city-stats}
+# Remove provinces with fewer than five entries
+survey_city <- survey_long %>% 
+  filter(city %in% c("Johannesburg", "Cape Town"))
+
+# compare_means(minutes ~ saying + city, data = survey_city, method = "kruskal.test")
+summary(aov(minutes ~ saying * city, data = survey_city))
+TukeyHSD(aov(minutes ~ saying * city, data = survey_city))
+```
+
+```{r city-plot}
+ggplot(data = survey_city, aes(x = saying, y = minutes)) +
+  geom_boxplot(aes(fill = city)) +
+  stat_compare_means(method = "anova", 
+                     label.x = 1.7, label.y = 320) +
+  ggtitle("Distribution of times by city")
+ggsave(filename = "../figures/SA_time_city.pdf")
+```
